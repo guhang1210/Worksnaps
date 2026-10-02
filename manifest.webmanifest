@@ -1,0 +1,15 @@
+{
+  "name": "WordSnap 영단어장",
+  "short_name": "WordSnap",
+  "description": "사진으로 영단어를 인식하고 암기와 테스트까지 하는 단어장",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f6fa",
+  "theme_color": "#5b5ce2",
+  "orientation": "portrait",
+  "icons": [
+    {"src":"icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}

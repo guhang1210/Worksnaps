@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WordSnap · 사진으로 영단어장</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{--bg:#f5f6fa;--card:#fff;--text:#191b22;--muted:#7a7f8d;--line:#e7e8ee;--accent:#5b5ce2;--accent2:#7778ee;--ok:#159570;--bad:#df4d5b}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Noto Sans KR",sans-serif;overscroll-behavior-y:none}
+button,input{font:inherit}
+button{cursor:pointer;border:0;-webkit-appearance:none}
+.app{width:100%;max-width:760px;margin:auto;padding:18px 16px 100px}
+header{display:flex;justify-content:space-between;align-items:center;padding:4px 2px 18px}
+.logo{font-size:25px;font-weight:900;letter-spacing:-1.2px}.logo span{color:var(--accent)}
+.status{font-size:11px;color:var(--muted);background:#fff;padding:7px 10px;border-radius:99px;border:1px solid var(--line)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:0 5px 24px #20242c0a;padding:18px;margin-bottom:14px}
+h1{font-size:25px;line-height:1.2;margin:0 0 8px;letter-spacing:-1.2px}h2{font-size:18px;margin:0 0 13px}p{margin:0;color:var(--muted);line-height:1.5}
+.tabs{display:flex;gap:7px;margin:0 0 14px;background:#e9eaf0;padding:4px;border-radius:15px;position:sticky;top:8px;z-index:20}
+.tab{flex:1;min-height:44px;padding:9px 5px;border-radius:11px;background:transparent;color:#626773;font-size:13px;font-weight:700;white-space:nowrap}
+.tab.active{background:#fff;color:var(--accent);box-shadow:0 2px 8px #00000010}
+.drop{border:2px dashed #cfd2df;border-radius:19px;padding:30px 14px;text-align:center;background:#fafaff;margin-top:17px}
+.drop strong{display:block;font-size:17px;margin-bottom:5px}.drop small{color:var(--muted)}
+.primary,.secondary,.danger{min-height:46px;border-radius:13px;padding:11px 15px;font-weight:750}
+.primary{background:var(--accent);color:#fff;box-shadow:0 5px 12px #5b5ce233}
+.secondary{background:#eef0f5;color:#343842}.danger{background:#fff0f1;color:var(--bad)}
+#file{display:none}.preview{width:100%;max-height:330px;object-fit:contain;border-radius:14px;margin-top:15px;background:#f0f1f5}
+.progress{height:9px;background:#eceef4;border-radius:99px;overflow:hidden;margin-top:15px}.bar{height:100%;width:0;background:var(--accent);transition:.2s}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.mt{margin-top:13px}
+.words{display:grid;gap:9px}
+.word{background:#f8f8fb;border:1px solid var(--line);border-radius:15px;padding:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px;position:relative}
+.word input{width:100%;min-height:44px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:#fff;outline:none}
+.word input:focus{border-color:var(--accent);box-shadow:0 0 0 3px #5b5ce215}
+.word .del{grid-column:1/-1;min-height:36px;padding:7px 10px;font-size:12px}
+.empty{text-align:center;padding:30px 10px;color:var(--muted);font-size:14px}
+.hidden{display:none!important}
+.notice{padding:11px 12px;background:#f1f2ff;color:#5053a7;border-radius:12px;font-size:12px;line-height:1.5;margin-top:12px}
+.section-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.section-actions button:last-child{grid-column:1/-1}
+.study{min-height:430px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:20px 5px}
+.badge{font-size:11px;color:var(--accent);background:#eeeeff;padding:7px 11px;border-radius:99px;font-weight:800}
+.bigword{font-size:clamp(38px,11vw,58px);font-weight:900;letter-spacing:-2.5px;margin:24px 0 9px;overflow-wrap:anywhere}
+.meaning{font-size:24px;font-weight:800;line-height:1.35;min-height:38px}.hint{font-size:13px;color:var(--muted);margin-top:9px}
+.nav{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:8px;width:100%;max-width:500px;margin-top:25px}.nav button{width:100%}
+.score{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:12px}.stat{background:#f7f7fb;border-radius:13px;padding:12px 5px;text-align:center;font-size:11px;color:var(--muted)}.stat b{display:block;font-size:20px;color:var(--text);margin-bottom:2px}
+.testbox{text-align:center;padding:24px 4px 10px}.testword{font-size:clamp(32px,10vw,48px);font-weight:900;margin:20px 0;overflow-wrap:anywhere}
+.answer{width:100%;max-width:500px;min-height:52px;padding:14px;border:1px solid var(--line);border-radius:13px;text-align:center;outline:none;background:#fff;font-size:17px}.answer:focus{border-color:var(--accent);box-shadow:0 0 0 3px #5b5ce215}
+.result{margin-top:12px;font-weight:800;min-height:24px}.ok{color:var(--ok)}.bad{color:var(--bad)}
+.bottom-note{text-align:center;font-size:11px;color:#9a9eaa;margin-top:18px}
+@media(min-width:700px){
+ .app{padding-top:30px}.tabs{position:static}.word{grid-template-columns:1fr 1fr auto}.word .del{grid-column:auto;min-height:44px}.section-actions{display:flex}.section-actions button:last-child{grid-column:auto}
+}
+</style>
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#5b5ce2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="WordSnap">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="logo">Word<span>Snap</span></div>
+  <div class="status" id="status">브라우저에서 작동</div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-tab="scan">📷 사진 → 단어장</button>
+  <button class="tab" data-tab="study">🧠 암기</button>
+  <button class="tab" data-tab="test">✍️ 테스트</button>
+</div>
+
+<section id="scan" class="page">
+  <div class="card">
+    <h1>사진으로 영단어장 만들기</h1>
+    <p>영단어가 적힌 사진을 올리면 OCR로 글자를 읽어 단어장으로 정리해줘.</p>
+    <div class="drop" id="drop">
+      <strong>사진을 여기에 놓기</strong>
+      <small>또는 아래 버튼으로 사진 선택</small>
+      <div class="mt"><button class="primary" id="pick">사진 업로드</button></div>
+      <input id="file" type="file" accept="image/*">
+      <img id="preview" class="preview">
+    </div>
+    <div id="ocrArea" class="hidden">
+      <div class="progress"><div class="bar" id="bar"></div></div>
+      <p id="ocrText" class="mt">OCR 준비 중...</p>
+    </div>
+    <div class="notice">Tip: 단어와 뜻이 한 줄에 같이 있거나 두 열로 정리된 사진에서 가장 잘 작동해. OCR 결과는 아래에서 직접 수정할 수 있어.</div>
+  </div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">내 단어장 <span id="count">0</span></h2>
+    </div>
+    <div class="section-actions">
+      <button class="secondary" id="add">＋ 단어 추가</button>
+      <button class="secondary" id="save">💾 저장</button>
+      <button class="danger" id="clear">전체 삭제</button>
+    </div>
+    <div id="words" class="words mt"></div>
+    <div id="empty" class="empty">아직 단어가 없어. 사진을 업로드하거나 단어를 직접 추가해봐!</div>
+  </div>
+</section>
+
+<section id="study" class="page hidden">
+  <div class="card">
+    <div class="study">
+      <span class="badge" id="studyNo">0 / 0</span>
+      <div class="bigword" id="studyWord">단어가 없습니다</div>
+      <div class="meaning hidden" id="studyMeaning"></div>
+      <div class="hint" id="studyHint">뜻을 확인하려면 버튼을 눌러주세요.</div>
+      <div class="nav">
+        <button class="secondary" id="prev">← 이전</button>
+        <button class="primary" id="show">뜻 보기</button>
+        <button class="secondary" id="next">다음 →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="test" class="page hidden">
+  <div class="card">
+    <div class="score">
+      <div class="stat"><b id="correct">0</b>정답</div>
+      <div class="stat"><b id="wrong">0</b>오답</div>
+      <div class="stat"><b id="accuracy">0%</b>정답률</div>
+    </div>
+    <div class="testbox">
+      <span class="badge" id="testNo">0 / 0</span>
+      <div class="testword" id="testWord">단어가 없습니다</div>
+      <input class="answer" id="answer" placeholder="뜻을 입력하세요" autocomplete="off">
+      <div class="mt"><button class="primary" id="submit">정답 확인</button></div>
+      <div class="result" id="result"></div>
+      <div class="nav">
+        <button class="secondary" id="testNext">다음 문제 →</button>
+        <button class="secondary" id="restart">테스트 처음부터</button>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+let words=JSON.parse(localStorage.getItem('wordsnap_words')||'[]');
+let studyIndex=0,testIndex=0,correct=0,wrong=0,answered=false;
+
+function saveWords(){localStorage.setItem('wordsnap_words',JSON.stringify(words));renderWords();updateStudy();updateTest();}
+function renderWords(){
+  $('#count').textContent=words.length;
+  $('#empty').classList.toggle('hidden',words.length>0);
+  $('#words').innerHTML=words.map((w,i)=>`
+    <div class="word">
+      <input data-i="${i}" data-k="en" value="${esc(w.en)}" placeholder="English">
+      <input data-i="${i}" data-k="ko" value="${esc(w.ko)}" placeholder="뜻">
+      <button class="danger del" data-i="${i}">삭제</button>
+    </div>`).join('');
+  document.querySelectorAll('.word input').forEach(x=>x.oninput=e=>{
+    words[+e.target.dataset.i][e.target.dataset.k]=e.target.value;
+    localStorage.setItem('wordsnap_words',JSON.stringify(words));
+  });
+  document.querySelectorAll('.del').forEach(x=>x.onclick=()=>{words.splice(+x.dataset.i,1);saveWords();});
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+$('#add').onclick=()=>{words.push({en:'',ko:''});saveWords();};
+$('#save').onclick=()=>{localStorage.setItem('wordsnap_words',JSON.stringify(words));alert('단어장을 저장했어!');};
+$('#clear').onclick=()=>{if(confirm('모든 단어를 삭제할까?')){words=[];saveWords();}};
+
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+  document.querySelectorAll('.page').forEach(x=>x.classList.add('hidden'));$('#'+b.dataset.tab).classList.remove('hidden');
+  if(b.dataset.tab==='study')updateStudy(); if(b.dataset.tab==='test')updateTest();
+});
+
+function updateStudy(){
+  if(!words.length){$('#studyNo').textContent='0 / 0';$('#studyWord').textContent='단어가 없습니다';$('#studyMeaning').classList.add('hidden');return}
+  studyIndex=Math.max(0,Math.min(studyIndex,words.length-1));
+  const w=words[studyIndex];
+  $('#studyNo').textContent=`${studyIndex+1} / ${words.length}`;
+  $('#studyWord').textContent=w.en||'(영어 단어 없음)';
+  $('#studyMeaning').textContent=w.ko||'(뜻 없음)';
+  $('#studyMeaning').classList.add('hidden');
+  $('#studyHint').textContent='뜻을 확인하려면 버튼을 눌러주세요.';
+}
+$('#show').onclick=()=>{$('#studyMeaning').classList.remove('hidden');$('#studyHint').textContent='';};
+$('#prev').onclick=()=>{if(words.length){studyIndex=(studyIndex-1+words.length)%words.length;updateStudy();}};
+$('#next').onclick=()=>{if(words.length){studyIndex=(studyIndex+1)%words.length;updateStudy();}};
+
+function updateTest(){
+  if(!words.length){$('#testNo').textContent='0 / 0';$('#testWord').textContent='단어가 없습니다';return}
+  testIndex=Math.max(0,Math.min(testIndex,words.length-1));
+  $('#testNo').textContent=`${testIndex+1} / ${words.length}`;
+  $('#testWord').textContent=words[testIndex].en||'(영어 단어 없음)';
+  $('#answer').value='';$('#result').textContent='';$('#result').className='result';answered=false;
+}
+function check(){
+  if(!words.length||answered)return;
+  const input=$('#answer').value.trim().toLowerCase();
+  const expected=(words[testIndex].ko||'').trim().toLowerCase();
+  if(!input)return;
+  answered=true;
+  if(input===expected){correct++;$('#result').textContent='✓ 정답!';$('#result').className='result ok';}
+  else{wrong++;$('#result').textContent=`✗ 정답: ${words[testIndex].ko}`;$('#result').className='result bad';}
+  $('#correct').textContent=correct;$('#wrong').textContent=wrong;
+  $('#accuracy').textContent=(correct+wrong)?Math.round(correct/(correct+wrong)*100)+'%':'0%';
+}
+$('#submit').onclick=check;
+$('#answer').onkeydown=e=>{if(e.key==='Enter')check();};
+$('#testNext').onclick=()=>{if(words.length){testIndex=(testIndex+1)%words.length;updateTest();}};
+$('#restart').onclick=()=>{testIndex=0;correct=0;wrong=0;$('#correct').textContent=0;$('#wrong').textContent=0;$('#accuracy').textContent='0%';updateTest();};
+
+const drop=$('#drop'),file=$('#file'),cameraFile=$('#cameraFile');
+$('#pick').onclick=e=>{e.stopPropagation();file.click()};
+$('#camera').onclick=e=>{e.stopPropagation();cameraFile.click()};
+cameraFile.onchange=e=>{if(e.target.files[0])processImage(e.target.files[0])};
+drop.onclick=e=>{if(!e.target.closest('button'))file.click()};
+['dragenter','dragover'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.add('drag')}));
+['dragleave','drop'].forEach(x=>drop.addEventListener(x,e=>{e.preventDefault();drop.classList.remove('drag')}));
+drop.addEventListener('drop',e=>{if(e.dataTransfer.files[0])processImage(e.dataTransfer.files[0])});
+file.onchange=e=>{if(e.target.files[0])processImage(e.target.files[0])};
+
+async function processImage(f){
+  if(!f.type.startsWith('image/'))return alert('이미지 파일을 올려줘.');
+  const url=URL.createObjectURL(f);$('#preview').src=url;$('#preview').style.display='block';
+  $('#ocrArea').classList.remove('hidden');$('#bar').style.width='2%';$('#ocrText').textContent='OCR 엔진을 준비하는 중...';
+  try{
+    const {data}=await Tesseract.recognize(f,'eng+kor',{
+      logger:m=>{
+        if(m.status==='recognizing text'){$('#bar').style.width=Math.round((m.progress||0)*100)+'%';$('#ocrText').textContent='사진의 글자를 읽는 중... '+Math.round((m.progress||0)*100)+'%';}
+        else $('#ocrText').textContent=m.status;
+      }
+    });
+    $('#bar').style.width='100%';$('#ocrText').textContent='인식 완료! 결과를 단어장으로 정리했어.';
+    const found=parseOCR(data.text);
+    if(found.length) words=[...words,...found].filter((w,i,a)=>w.en && a.findIndex(x=>x.en.toLowerCase()===w.en.toLowerCase())===i);
+    else alert('단어를 충분히 인식하지 못했어. 더 선명한 사진으로 다시 시도해줘.');
+    saveWords();
+  }catch(err){console.error(err);$('#ocrText').textContent='OCR 실패';alert('OCR 처리 중 오류가 발생했어. 인터넷 연결을 확인하고 다시 시도해줘.');}
+}
+function parseOCR(text){
+  const lines=text.split(/\r?\n/).map(x=>x.replace(/\t/g,' ').replace(/\s+/g,' ').trim()).filter(Boolean);
+  const out=[];
+  for(const line of lines){
+    let clean=line.replace(/^\s*\d+[.)、]\s*/,'').trim();
+    let m=clean.match(/^([A-Za-z][A-Za-z' -]{1,40})\s*(?:[:：\-–—|]| {2,})\s*(.+)$/);
+    if(!m)m=clean.match(/^([A-Za-z][A-Za-z' -]{1,40})\s+([가-힣][가-힣0-9 ,·/()]{1,60})$/);
+    if(m){
+      let en=m[1].trim().replace(/^\d+[.)]\s*/,'');
+      let ko=m[2].trim().replace(/^[\s:：\-–—]+/,'');
+      if(en && ko && !/^[0-9]+$/.test(en))out.push({en,ko});
+    }
+  }
+  // fallback: detect English line followed by Korean line
+  for(let i=0;i<lines.length-1;i++){
+    if(/^[A-Za-z][A-Za-z' -]{1,40}$/.test(lines[i]) && /[가-힣]/.test(lines[i+1]))
+      out.push({en:lines[i],ko:lines[i+1]});
+  }
+  return out;
+}
+renderWords();updateStudy();updateTest();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  });
+}
+</script>
+
+</body>
+</html>
